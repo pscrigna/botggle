@@ -147,6 +147,7 @@ def start_command(update: Update, context: CallbackContext) -> None:
     # tiene que decir /listo para arrancar -- esto va a funcionar si alguna vez el usuario le dio
     # /start al bot, y si no, no :shrug:
 
+
 def time_up(context):
     """Se acabo el tiempo de la ronda."""
     print(f'======== time up {context}')
@@ -203,8 +204,19 @@ def ready_command(update: Update, context: CallbackContext) -> None:
     context.job_queue.run_once(time_up, ROUND_TIMEUP, context={'game': game})
 
 
-def game_words() -> None:
-    pass
+def game_words(update: Update, context: CallbackContext) -> None:
+    """Recibe las palabras de cada player"""
+    username = update.effective_user.username
+    word = update.message.text
+    player = PLAYER_BY_USERNAME[username]
+    # FIXME: si el juego esta freezado, NO agregar la palabra
+
+    # FIXME: aca soportar espacios y newlines
+    player.game.round_words[username].append(word)
+    print("========= agregamos palabra", username, repr(word))
+
+    # FIXME: luego de N palabras, tirarle de nuevo el tablero así no se le va demasiado arriba
+    # update.message.reply_text()
 
 
 def main(token: str) -> None:
