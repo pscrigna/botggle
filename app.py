@@ -12,16 +12,14 @@ fstrings !r
 
 """
 
-import enum
 import sys
-from collections import defaultdict
 
 import infoauth
 from telegram import Update, ForceReply, MessageEntity, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 from botggle.board import Board
-
+from botggle.game import Game
 
 # duración de la ronda (en segundos)
 ROUND_TIMEUP = 30  # FIXME: corregir 30 a 120, o traerlo de una "config"
@@ -32,10 +30,6 @@ PLAYER_BY_USERNAME = {}
 # Relaciona el chat al game
 GAME_BY_CHAT = {}
 
-# Load RAE words
-with open("rae_words.txt") as fh:
-    rae_words = {line.strip() for line in fh}
-
 
 class Player:
 
@@ -44,57 +38,6 @@ class Player:
         self.ready = False
         self.game = game
         self.chat = None
-
-
-class Game:
-
-    State = enum.Enum("State", "WAITING ACTIVE FINISHED")
-
-    def __init__(self, players, chat):
-        self.players = players
-        self.chat = chat
-        self._state = self.State.WAITING
-        self.full_scores = defaultdict(int)
-
-    def start(self):
-        """Arranca la ronda."""
-        self.round_words = defaultdict(list)
-        self._state = self.state.ACTIVE
-
-    def next_round(self):
-        """vuelve a esperar a todos los jugadores antes de la proxima ronda."""
-        self._state = self.State.WAITING
-
-    def _evaluate_words(self):
-        """Evalua que palabras son validas y marca las repetidas"""
-        print(f"========== {self.round_words}")
-        # FIXME:
-        # validar que la palabra sea ok diccionario
-        word in rae_words
-
-        # validar que la palabra este en el tablero
-        self.game.board.exists(word)
-
-        # ver cuales estan repetidasen el total
-        # y armar el diccionario result con clave username y valor word
-
-        # FIXME result
-        result = {}
-
-        # ejemplo de mostrado:
-        # Diego: coma, punto (repetidas: zaraza; no en el diccionario: punno)
-        # Facundo: cumo, panto (repetidas: zaraza)
-        # Leandro: pinto (no en el tablero: xuxo; no en el diccionario: panta)
-        return result
-
-    def summarize_scores(self):
-        """cierra la ronda, evalua las palabras y hace el resumen de los scores."""
-        self._evaluate_words()
-
-        round_result = self._calculate_scores()
-        for player_name, round_score in round_result:
-            self.full_scores[player_name] += round_score
-        return (round_result, self.full_scores)    # FIXME: pensar que devolvemos en funcion de como se muestra
 
 
 def start(update: Update, context: CallbackContext) -> None:
@@ -149,24 +92,35 @@ def start_command(update: Update, context: CallbackContext) -> None:
 
 
 def time_up(context):
-    """Se acabo el tiempo de la ronda."""
-    print(f'======== time up {context}')
+    """Se acabó el tiempo de la ronda."""
+    print("===== time up", context)
     payload = context.job.context
     game = payload['game']
-    game.freeze()    # NEXTWEEK implemetar
+    game.end_round()
 
-    # FIXME avisamos a todos por privado que listo
+    # FIXME: avisamos a todes por privado que listo
 
     # avisamos en el público que terminó la ronda
     game.chat.send_message("¡Se terminó la ronda!")
 
     # mostrar resumen de cómo va el partido
-    # FIXME: revisar el doc
-    round_result = game.summarize_scores()
+    user_words = game.evaluate_words()
+    round_scores = game.summarize_scores(user_words)
     game.chat.send_message("¡Se terminó la ronda!")
-    game.chat.send_message(f"Progreso del juego: {round_result}")
+
+    # FIXME: mostrar esto lindo
+    game.chat.send_message(f"Como le fue a cada une: {user_words}")
+    # ejemplo de mostrado:
+    # Diego: coma, punto (repetidas: zaraza; no en el diccionario: punno)
+    # Facundo: cumo, panto (repetidas: zaraza)
+    # Leandro: pinto (no en el tablero: xuxo; no en el diccionario: panta)
+
+    # FIXME: mostrar esto lindo
+    game.chat.send_message(f"Progreso del juego: {round_scores} {game.full_scores}")
 
     # avanzamos el juego
+    # FIXME: en algun momento tomar la decision de que el partido entero terminó y no hay
+    # próxima ronda
     game.next_round()
 
 
