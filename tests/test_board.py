@@ -1,5 +1,9 @@
 """Tests for the board module."""
 
+import string
+import textwrap
+
+from botggle import board
 from botggle.board import Board, LocatedChar as LC
 
 import pytest
@@ -44,6 +48,13 @@ def test_graph_simple(monkeypatch):
     assert b._word_graph == expected
 
 
+def test_real_board_in_lowercase():
+    b = Board()
+    for line in b.distribution:
+        for char in line:
+            assert char.islower()
+
+
 def test_exists_simple_missing(monkeypatch):
     distribution = [
         list("abcd"),
@@ -65,11 +76,16 @@ def test_exists_simple_missing(monkeypatch):
     ("holas", False),
     ("ablx", True),
     ("ablxa", True),
-    ("ablxab", False),  # NEXTWEEK
-    ("ablxb", False),  # NEXTWEEK
-    ("ablxba", False),  # NEXTWEEK
+    ("ablxab", False),
+    ("ablxb", False),
+    ("ablxba", False),
     ("cdab", False),
-    ("ababababababababab", False),  # NEXTWEEK
+    ("ababababababababab", False),
+    ("ablax", False),
+    ("abcdqzlx", True),
+    ("abcdqzlxa", True),
+    ("abcdqzlxab", False),
+    ("abcdqzblx", False),
 ])
 def test_exists_case_1(monkeypatch, word, expected):
     distribution = [
@@ -83,3 +99,21 @@ def test_exists_case_1(monkeypatch, word, expected):
     b = Board()
     result = b.exists(word)
     assert result is expected
+
+
+def test_render():
+    b = Board()
+    b.distribution = [
+        ['a', 'u', 'x', 'f'],
+        ['t', 'i', 'g', 'r'],
+        ['o', 'e', 'f', 's'],
+        ['i', 'e', 'e', 'c']
+    ]
+    rendered = b.render()
+    expected = textwrap.dedent("""\
+        A  U  X  F
+        T  I  G  R
+        O  E  F  S
+        I  E  E  C
+    """)
+    assert rendered == expected
